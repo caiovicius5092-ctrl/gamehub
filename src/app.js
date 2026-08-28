@@ -8,6 +8,7 @@ app.use(express.json());
 app.use(logger);
 
 app.use("/jogos", gameRoutes);
+
 app.use(errorHandler);
 
 module.exports = app;
