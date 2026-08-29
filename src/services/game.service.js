@@ -1,41 +1,101 @@
-const jogos = require("../data/jogos");
+const database = require("../config/database");
+
+function ensureGamesTable() {
+  return new Promise((resolve, reject) => {
+    database.run(
+      `CREATE TABLE IF NOT EXISTS games (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        genre TEXT NOT NULL,
+        platform TEXT NOT NULL
+      )`,
+      (error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve();
+      },
+    );
+  });
+}
 
 function getGames() {
-    return jogos;
+  return ensureGamesTable().then(() => new Promise((resolve, reject) => {
+    database.all("SELECT * FROM games", (error, games) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve(games);
+    });
+  }));
 }
 
 function getGameById(id) {
-    const jogo = jogos.find((jogo) => jogo.id === id);
+  return ensureGamesTable().then(() => new Promise((resolve, reject) => {
+    database.get("SELECT * FROM games WHERE id = ?", [id], (error, game) => {
+      if (error) {
+        reject(error);
+        return;
+      }
 
-    return jogo;
+      resolve(game || null);
+    });
+  }));
 }
 
 function getGamesByGenre(genre) {
-    const filtro = jogos.filter((jogo) => jogo.genre.toLowerCase() === genre.toLowerCase());
+  return ensureGamesTable().then(() => new Promise((resolve, reject) => {
+    database.all("SELECT * FROM games WHERE genre = ?", [genre], (error, games) => {
+      if (error) {
+        reject(error);
+        return;
+      }
 
-    return filtro;
+      resolve(games);
+    });
+  }));
 }
 
 function addGame(newGame) {
-    const id = jogos.length + 1;
-    const jogo = { id, ...newGame };
-    jogos.push(jogo);
-    return jogo;
+  const { name, genre, platform } = newGame;
+
+  return ensureGamesTable().then(() => new Promise((resolve, reject) => {
+    database.run(
+      "INSERT INTO games (name, genre, platform) VALUES (?, ?, ?)",
+      [name, genre, platform],
+      function (error) {
+      if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve({ id: this.lastID, name, genre, platform });
+      }
+    );
+  }));
 }
 
-function deleteGame(gameid){
-    const jogo = jogos.find((jogo) => jogo.id === gameid);
-    if (jogo) {
-        jogos.splice(jogos.indexOf(jogo), 1);
-    }
-    
+function deleteGame(gameid) {
+  return ensureGamesTable().then(() => new Promise((resolve, reject) => {
+    database.run("DELETE FROM games WHERE id = ?", [gameid], function (error) {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve(this.changes > 0);
+    });
+  }));
 }
 
 module.exports = {
-    getGames,
-    getGameById,
-    getGamesByGenre,
-    addGame,
-    deleteGame
+  getGames,
+  getGameById,
+  getGamesByGenre,
+  addGame,
+  deleteGame,
 };
-

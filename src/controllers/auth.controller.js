@@ -1,6 +1,6 @@
 const authService = require("../services/auth.service");
 
-function register(req, res) {
+async function register(req, res) {
   const { name, email, password } = req.body;
 
   if (!name || !email || !password) {
@@ -11,7 +11,7 @@ function register(req, res) {
     return res.status(400).json({ message: "A senha deve ter pelo menos 6 caracteres" });
   }
 
-  const user = authService.register({ name, email, password });
+  const user = await authService.register({ name, email, password });
 
   if (!user) {
     return res.status(409).json({ message: "Email já cadastrado" });
@@ -20,14 +20,14 @@ function register(req, res) {
   return res.status(201).json(user);
 }
 
-function login(req, res) {
+async function login(req, res) {
   const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ message: "Email e senha são obrigatórios" });
   }
 
-  const result = authService.login(email, password);
+  const result = await authService.login(email, password);
 
   if (!result) {
     return res.status(401).json({ message: "Email ou senha inválidos" });
@@ -36,8 +36,8 @@ function login(req, res) {
   return res.status(200).json(result);
 }
 
-function me(req, res) {
-  return res.status(200).json(authService.getUserById(req.user.sub));
+async function me(req, res) {
+  return res.status(200).json(await authService.getUserById(req.user.sub));
 }
 
 module.exports = { register, login, me };

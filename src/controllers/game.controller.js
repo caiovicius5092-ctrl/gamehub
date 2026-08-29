@@ -1,13 +1,17 @@
 const gameService = require('../services/game.service');
 
-function getGames(req, res) {
-  const games = gameService.getGames();
-  return res.status(200).json(games);
+async function getGames(req, res) {
+  try {
+    const games = await gameService.getGames();
+    return res.status(200).json(games);
+  } catch (error) {
+    return res.status(500).json({ message: "Erro ao buscar jogos" });
+  }
 }
 
-function getGameById(req, res) {
+async function getGameById(req, res) {
   const id = parseInt(req.params.id);
-  const game = gameService.getGameById(id);
+  const game = await gameService.getGameById(id);
 
   if (!game) {
     return res.status(404).json({ message: "Jogo não encontrado" });
@@ -16,21 +20,24 @@ function getGameById(req, res) {
   return res.status(200).json(game);
 }
 
-function getGamesByGenre(req, res) {
+async function getGamesByGenre(req, res) {
   const genre = req.query.genre;
-  const games = gameService.getGamesByGenre(genre);
+  const games = await gameService.getGamesByGenre(genre);
   return res.status(200).json(games);
 }
 
-function addGame(req, res) {
+async function addGame(req, res) {
   const newGame = req.body;
-  const game = gameService.addGame(newGame);
+  const game = await gameService.addGame(newGame);
   return res.status(201).json(game);
 }
 
-function deleteGame(req, res) {
+async function deleteGame(req, res) {
   const gameid = parseInt(req.params.id);
-  gameService.deleteGame(gameid);
+  const deleted = await gameService.deleteGame(gameid);
+  if (!deleted) {
+    return res.status(404).json({ message: "Jogo não encontrado" });
+  }
   return res.status(204).send();
 }
 

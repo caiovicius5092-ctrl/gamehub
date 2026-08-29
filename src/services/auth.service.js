@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const database = require("../config/database");
 
-const users = [];
 const jwtSecret = process.env.JWT_SECRET || "dev-secret-change-me";
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
@@ -21,37 +21,67 @@ function publicUser(user) {
 function register({ name, email, password }) {
   const normalizedEmail = email.trim().toLowerCase();
 
-  if (users.some((user) => user.email === normalizedEmail)) {
-    return null;
-  }
-
   const { hash, salt } = hashPassword(password);
-  const user = {
-    id: users.length + 1,
-    name: name.trim(),
-    email: normalizedEmail,
-    passwordHash: hash,
-    salt
-  };
 
-  users.push(user);
-  return publicUser(user);
+  return new Promise((resolve, reject) => {
+    database.run(
+      `INSERT INTO users (name, email, password_hash, salt) VALUES (?, ?, ?, ?)`,
+      [name.trim(), normalizedEmail, hash, salt],
+      function (error) {
+        if (error) {
+          if (error.code === "SQLITE_CONSTRAINT") {
+            resolve(null);
+            return;
+          }
+
+          reject(error);
+          return;
+        }
+
+        resolve({ id: this.lastID, name: name.trim(), email: normalizedEmail });
+      }
+    );
+  });
 }
 
 function login(email, password) {
-  const user = users.find((item) => item.email === email.trim().toLowerCase());
+  return new Promise((resolve, reject) => {
+    database.get(
+      "SELECT id, name, email, password_hash AS passwordHash, salt FROM users WHERE email = ?",
+      [email.trim().toLowerCase()],
+      (error, user) => {
+        if (error) {
+          reject(error);
+          return;
+        }
 
-  if (!user || !isValidPassword(password, user)) {
-    return null;
-  }
+        if (!user || !isValidPassword(password, user)) {
+          resolve(null);
+          return;
+        }
 
-  const token = jwt.sign({ sub: user.id, email: user.email }, jwtSecret, { expiresIn: "1h" });
-  return { token, user: publicUser(user) };
+        const token = jwt.sign({ sub: user.id, email: user.email }, jwtSecret, { expiresIn: "1h" });
+        resolve({ token, user: publicUser(user) });
+      }
+    );
+  });
 }
 
 function getUserById(id) {
-  const user = users.find((item) => item.id === id);
-  return user ? publicUser(user) : null;
+  return new Promise((resolve, reject) => {
+    database.get(
+      "SELECT id, name, email FROM users WHERE id = ?",
+      [id],
+      (error, user) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(user || null);
+      }
+    );
+  });
 }
 
 module.exports = { register, login, getUserById };
